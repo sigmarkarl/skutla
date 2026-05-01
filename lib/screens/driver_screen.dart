@@ -12,6 +12,7 @@ import '../services/geocoding.dart';
 import '../services/geohash.dart';
 import '../services/identity_service.dart';
 import '../services/location_service.dart';
+import '../services/notifier.dart';
 import '../services/p2p_service.dart';
 import '../services/pricing.dart';
 import '../services/rating_store.dart';
@@ -84,6 +85,7 @@ class _DriverScreenState extends State<DriverScreen> {
   }
 
   Future<void> _bootstrap() async {
+    await Notifier.init();
     _mySummary = await _ratings.summary();
     _car = await _identity.readCarInfo();
     _contact = await _identity.readContactInfo();
@@ -265,6 +267,13 @@ class _DriverScreenState extends State<DriverScreen> {
         shareContact: _shareContact,
       );
     });
+
+    Notifier.notify(
+      title: 'Ride request from ${msg.fromName ?? 'a passenger'}',
+      body:
+          'Pickup ${_fmtMeters(pickupMeters)} away · Trip ${_fmtMeters(tripMeters)}',
+      id: msg.rideId.hashCode,
+    );
   }
 
   void _onInbox(InboxMessage msg) {

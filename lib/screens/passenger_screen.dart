@@ -17,6 +17,7 @@ import '../services/ride_history.dart';
 import 'backup_dialog.dart';
 import 'history_screen.dart';
 import '../services/location_service.dart';
+import '../services/notifier.dart';
 import '../services/p2p_service.dart';
 import '../services/pricing.dart';
 import '../services/rating_store.dart';
@@ -85,6 +86,7 @@ class _PassengerScreenState extends State<PassengerScreen> {
   }
 
   Future<void> _bootstrap() async {
+    await Notifier.init();
     _mySummary = await _ratings.summary();
 
     final ok = await _location.ensurePermission();
@@ -162,6 +164,14 @@ class _PassengerScreenState extends State<PassengerScreen> {
       case InboxKind.rideOffer:
         if (msg.rideId != _pendingRideId || _activeRideId != null) return;
         setState(() => _bids[msg.fromId] = msg);
+        final priceLabel = (msg.price != null && msg.currency != null)
+            ? Pricing.round(msg.price!, msg.currency!)
+            : '';
+        Notifier.notify(
+          title: 'New offer from ${msg.fromName ?? 'a driver'}',
+          body: priceLabel.isEmpty ? 'Tap to review' : 'Price: $priceLabel',
+          id: msg.fromId.hashCode,
+        );
         break;
       case InboxKind.locationUpdate:
         if (msg.rideId == _activeRideId &&
