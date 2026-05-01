@@ -12,6 +12,7 @@ MqttClient createPlatformMqttClient({
   final client = MqttBrowserClient.withPort(url, clientId, port);
   client.websocketProtocols = MqttClientConstants.protocolsMultipleDefault;
   client.keepAlivePeriod = 30;
+  client.connectTimeoutPeriod = 15000;
   client.logging(on: false);
   return client;
 }

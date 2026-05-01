@@ -10,9 +10,9 @@ MqttClient createPlatformMqttClient({
   final scheme = port == 8884 ? 'wss' : 'ws';
   final client = MqttServerClient.withPort('$scheme://$host$path', clientId, port);
   client.useWebSocket = true;
-  client.secure = scheme == 'wss';
   client.websocketProtocols = MqttClientConstants.protocolsMultipleDefault;
   client.keepAlivePeriod = 30;
+  client.connectTimeoutPeriod = 15000;
   client.logging(on: false);
   return client;
 }
