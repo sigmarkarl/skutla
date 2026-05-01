@@ -14,6 +14,7 @@ import '../services/geocoding.dart';
 import '../services/geohash.dart';
 import '../services/identity_service.dart';
 import '../services/ride_history.dart';
+import 'backup_dialog.dart';
 import 'history_screen.dart';
 import '../services/location_service.dart';
 import '../services/p2p_service.dart';
@@ -562,6 +563,21 @@ class _PassengerScreenState extends State<PassengerScreen> {
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const HistoryScreen()),
             ),
+          ),
+          IconButton(
+            tooltip: 'Backup / Restore',
+            icon: const Icon(Icons.vpn_key),
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final restored = await showBackupDialog(context);
+              if (!mounted || !restored) return;
+              navigator.pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      RoleSelectionScreen(peerId: widget.peerId),
+                ),
+              );
+            },
           ),
           IconButton(
             tooltip: 'Switch role',

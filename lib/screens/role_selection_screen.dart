@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/messages.dart';
 import '../services/identity_service.dart';
+import 'backup_dialog.dart';
 import 'driver_screen.dart';
 import 'passenger_screen.dart';
 
@@ -17,10 +18,12 @@ class RoleSelectionScreen extends StatefulWidget {
 class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
   final _identity = IdentityService();
   final _nameController = TextEditingController();
+  String _peerId = '';
 
   @override
   void initState() {
     super.initState();
+    _peerId = widget.peerId;
     _identity.readName().then((value) {
       if (value != null && mounted) {
         _nameController.text = value;
@@ -48,17 +51,53 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => role == Role.driver
-            ? DriverScreen(peerId: widget.peerId, displayName: name)
-            : PassengerScreen(peerId: widget.peerId, displayName: name),
+            ? DriverScreen(peerId: _peerId, displayName: name)
+            : PassengerScreen(peerId: _peerId, displayName: name),
       ),
     );
   }
 
+  Future<void> _openBackup() async {
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final restored = await showBackupDialog(context);
+    if (!restored || !mounted) return;
+    final newId = await _identity.getOrCreatePeerId();
+    final newName = await _identity.readName() ?? '';
+    final newRole = await _identity.readRole();
+    if (!mounted) return;
+    setState(() {
+      _peerId = newId;
+      _nameController.text = newName;
+    });
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Identity restored.')),
+    );
+    if (newRole != null && newName.isNotEmpty) {
+      navigator.pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => newRole == Role.driver
+              ? DriverScreen(peerId: newId, displayName: newName)
+              : PassengerScreen(peerId: newId, displayName: newName),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final shortId = widget.peerId.substring(0, 8);
+    final shortId = _peerId.substring(0, 8);
     return Scaffold(
-      appBar: AppBar(title: const Text('Skutla')),
+      appBar: AppBar(
+        title: const Text('Skutla'),
+        actions: [
+          IconButton(
+            tooltip: 'Backup / Restore',
+            icon: const Icon(Icons.vpn_key),
+            onPressed: _openBackup,
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -101,6 +140,12 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                 child: Text('Continue as Passenger'),
               ),
               onPressed: () => _continueAs(Role.passenger),
+            ),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: _openBackup,
+              icon: const Icon(Icons.vpn_key, size: 18),
+              label: const Text('Backup or restore identity'),
             ),
           ],
         ),

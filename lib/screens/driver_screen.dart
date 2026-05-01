@@ -17,6 +17,7 @@ import '../services/pricing.dart';
 import '../services/rating_store.dart';
 import '../models/ride_record.dart';
 import '../services/ride_history.dart';
+import 'backup_dialog.dart';
 import 'car_info_dialog.dart';
 import 'contact_info_dialog.dart';
 import 'history_screen.dart';
@@ -573,6 +574,21 @@ class _DriverScreenState extends State<DriverScreen> {
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const HistoryScreen()),
             ),
+          ),
+          IconButton(
+            tooltip: 'Backup / Restore',
+            icon: const Icon(Icons.vpn_key),
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final restored = await showBackupDialog(context);
+              if (!mounted || !restored) return;
+              navigator.pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      RoleSelectionScreen(peerId: widget.peerId),
+                ),
+              );
+            },
           ),
           IconButton(
             tooltip: 'Switch role',
