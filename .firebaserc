@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "answer-311"
+  },
+  "targets": {
+    "answer-311": {
+      "hosting": {
+        "skutla": [
+          "skutla-rides"
+        ]
+      }
+    }
+  }
+}

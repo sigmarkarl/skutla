@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skutla — Privacy Policy</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 720px;
+      margin: 2rem auto;
+      padding: 0 1.25rem;
+      color: #1a1a2e;
+      line-height: 1.55;
+    }
+    h1 { color: #3949AB; margin-bottom: 0.25rem; }
+    h2 { color: #3949AB; margin-top: 2rem; font-size: 1.15rem; }
+    .meta { color: #666; font-size: 0.9rem; margin-bottom: 1.75rem; }
+    code { background: #f3f3f7; padding: 0 0.25rem; border-radius: 3px; }
+    a { color: #3949AB; }
+    ul { padding-left: 1.25rem; }
+    li { margin: 0.25rem 0; }
+    .summary {
+      background: #eef0fb;
+      border-left: 4px solid #3949AB;
+      padding: 0.85rem 1rem;
+      border-radius: 4px;
+      margin: 1rem 0 1.5rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Skutla privacy policy</h1>
+  <div class="meta">Effective 1 May 2026</div>
+
+  <div class="summary">
+    Skutla is a decentralized peer-to-peer ride-matching demo. It runs entirely on
+    your device and exchanges messages directly with other users through a free
+    public MQTT broker. There is no Skutla-operated server, account system, or
+    analytics. The data you enter stays on your device and is shared only with
+    other Skutla peers when you actively use the app.
+  </div>
+
+  <h2>Who runs Skutla</h2>
+  <p>
+    Skutla is an independent open-source hobby project. It is not affiliated with
+    or operated by any company or organization. Source code is at
+    <a href="https://github.com/sigmarkarl/skutla">github.com/sigmarkarl/skutla</a>.
+    Questions or concerns can be raised by opening an issue at
+    <a href="https://github.com/sigmarkarl/skutla/issues">github.com/sigmarkarl/skutla/issues</a>.
+  </p>
+
+  <h2>What information the app handles</h2>
+  <p>The app processes the following data, only while you are using it:</p>
+  <ul>
+    <li><strong>Peer ID</strong> — a random UUID generated on first launch. Not
+      tied to your name, phone, or email.</li>
+    <li><strong>Display name</strong> — whatever you type when picking a role.</li>
+    <li><strong>Role</strong> — Driver or Passenger.</li>
+    <li><strong>Location</strong> — your device GPS coordinates, used to find
+      nearby peers and to render the map. Only read while the app is in the
+      foreground.</li>
+    <li><strong>Driver-only optional data</strong> — vehicle make/model/color/plate;
+      contact (phone, WhatsApp, Messenger); payment handles (Aur phone, PayPal,
+      Venmo, WeChat ID); preferred currency. You enter these yourself and they
+      are sent only to riders you bid on, and only when the "Share contact" toggle
+      is on.</li>
+    <li><strong>Trip data</strong> — pickup and destination coordinates, agreed
+      price, start/end time. Used to coordinate the ride and shown in your local
+      ride history.</li>
+    <li><strong>Ratings</strong> — 1-5 star scores you receive from past
+      counterparts. Stored locally; an aggregate average is broadcast with your
+      presence so others can see it.</li>
+  </ul>
+
+  <h2>Where the data goes</h2>
+  <ul>
+    <li><strong>Locally on your device</strong>, in your browser's
+      <code>localStorage</code> (web) or <code>shared_preferences</code>
+      (iOS/Android). Clearing the app's storage / browser data permanently
+      deletes everything.</li>
+    <li><strong>Through a public MQTT broker</strong> at
+      <code>broker.hivemq.com</code>, run by HiveMQ GmbH as a free public
+      service. Messages travel over TLS WebSockets. The broker may store retained
+      presence messages for short periods to deliver them to subscribers. Skutla
+      does not have an account or contractual relationship with HiveMQ. See
+      <a href="https://www.hivemq.com/privacy/">HiveMQ's privacy policy</a>.</li>
+    <li><strong>To OpenStreetMap</strong> for map tiles
+      (<code>tile.openstreetmap.org</code>) and reverse geocoding to pick a
+      currency (<code>nominatim.openstreetmap.org</code>). Your coordinates are
+      sent to OSM whenever a tile or geocode is requested. See
+      <a href="https://wiki.osmfoundation.org/wiki/Privacy_Policy">OSMF's privacy
+      policy</a>.</li>
+    <li><strong>To other Skutla peers</strong> in your geohash cell — your
+      live location, display name, role, plus any optional driver info above —
+      while you are running the app.</li>
+  </ul>
+
+  <h2>What we do <em>not</em> collect</h2>
+  <ul>
+    <li>No analytics, no telemetry, no crash reporting, no advertising IDs.</li>
+    <li>No account creation, password, email, phone number, or government ID
+      requested by the app itself.</li>
+    <li>No backend logs — Skutla operates no server.</li>
+  </ul>
+
+  <h2>Children</h2>
+  <p>
+    Skutla is not intended for children under 13. Don't use it if you are.
+  </p>
+
+  <h2>Your rights</h2>
+  <p>
+    Because Skutla doesn't run a backend, "delete my account" simply means
+    clearing the app's local storage on your device:
+  </p>
+  <ul>
+    <li><strong>Web</strong>: clear site data for the Skutla domain in your
+      browser settings.</li>
+    <li><strong>iOS/Android</strong>: uninstall the app, or use the OS storage
+      controls to clear app data.</li>
+  </ul>
+  <p>
+    Once cleared, your peer ID is regenerated on next launch and previous data
+    cannot be recovered.
+  </p>
+
+  <h2>Changes to this policy</h2>
+  <p>
+    Material changes will be reflected here with an updated effective date.
+  </p>
+</body>
+</html>
