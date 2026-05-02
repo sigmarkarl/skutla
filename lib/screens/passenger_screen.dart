@@ -325,6 +325,7 @@ class _PassengerScreenState extends State<PassengerScreen> {
     final endedDriverName = _activeDriverName;
     final endedPrice = _activePrice;
     final endedCurrency = _activeCurrency;
+    final endedPayment = _activeDriverPayment;
     final endedDestination = _destination;
     final endedPickup = _last;
     final startedAt = _activeStartedAt;
@@ -374,6 +375,9 @@ class _PassengerScreenState extends State<PassengerScreen> {
         rideId: endedRideId,
         counterpartyId: endedDriverId,
         counterpartyName: endedDriverName,
+        payment: endedPayment,
+        price: endedPrice,
+        currency: endedCurrency,
       );
     }
   }
@@ -382,10 +386,18 @@ class _PassengerScreenState extends State<PassengerScreen> {
     required String rideId,
     required String counterpartyId,
     String? counterpartyName,
+    PaymentInfo? payment,
+    double? price,
+    String? currency,
   }) async {
     if (!mounted) return;
-    final result = await showRatingDialog(context,
-        counterpartyName: counterpartyName ?? 'driver');
+    final result = await showRatingDialog(
+      context,
+      counterpartyName: counterpartyName ?? 'driver',
+      payment: payment,
+      price: price,
+      currency: currency,
+    );
     if (result == null) return;
     _p2p.sendInbox(InboxMessage(
       kind: InboxKind.rating,
