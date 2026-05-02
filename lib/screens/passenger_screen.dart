@@ -16,6 +16,7 @@ import '../services/identity_service.dart';
 import '../services/ride_history.dart';
 import 'backup_dialog.dart';
 import 'chat_screen.dart';
+import 'contact_info_dialog.dart';
 import 'history_screen.dart';
 import '../services/location_service.dart';
 import '../services/notifier.dart';
@@ -46,6 +47,8 @@ class _PassengerScreenState extends State<PassengerScreen> {
   final _bidsScroll = ScrollController();
   final _ratings = RatingStore();
   final _history = RideHistoryStore();
+  final _identity = IdentityService();
+  ContactInfo? _contact;
   RatingSummary _mySummary = RatingSummary.empty;
 
   StreamSubscription<Position>? _posSub;
@@ -85,6 +88,7 @@ class _PassengerScreenState extends State<PassengerScreen> {
   Future<void> _bootstrap() async {
     await Notifier.init();
     _mySummary = await _ratings.summary();
+    _contact = await _identity.readContactInfo();
 
     final ok = await _location.ensurePermission();
     if (!ok && mounted) {
@@ -126,6 +130,14 @@ class _PassengerScreenState extends State<PassengerScreen> {
       }
       if (mounted) setState(() {});
     });
+  }
+
+  Future<void> _editContact() async {
+    final updated = await showContactInfoDialog(context, initial: _contact);
+    if (updated == null) return;
+    await _identity.writeContactInfo(updated);
+    if (!mounted) return;
+    setState(() => _contact = updated);
   }
 
   Future<void> _resolveCurrency(Position pos) async {
@@ -328,6 +340,8 @@ class _PassengerScreenState extends State<PassengerScreen> {
       toId: bid.fromId,
       rideId: rideId,
       accepted: true,
+      fromContact:
+          (_contact != null && _contact!.hasAny) ? _contact : null,
     ));
     for (final loser in losers) {
       _p2p.sendInbox(InboxMessage(
@@ -599,6 +613,11 @@ class _PassengerScreenState extends State<PassengerScreen> {
             ? 'Passenger · ${widget.displayName} · ${_mySummary.formatted()}'
             : 'Passenger · ${widget.displayName}'),
         actions: [
+          IconButton(
+            tooltip: 'Edit contact',
+            icon: const Icon(Icons.contact_phone),
+            onPressed: _editContact,
+          ),
           IconButton(
             tooltip: 'Ride history',
             icon: const Icon(Icons.history),
@@ -1148,14 +1167,16 @@ class _PaymentButtons extends StatelessWidget {
       children.add(_ContactChip(
         icon: Icons.currency_bitcoin,
         label: 'Bitcoin',
-        onTap: () => openBitcoin(payment.bitcoin!),
+        onTap: () => openBitcoin(payment.bitcoin!,
+            amount: price, currency: currency),
       ));
     }
     if ((payment.ethereum ?? '').isNotEmpty) {
       children.add(_ContactChip(
         icon: Icons.token,
         label: 'Ethereum',
-        onTap: () => openEthereum(payment.ethereum!),
+        onTap: () => openEthereum(payment.ethereum!,
+            amount: price, currency: currency),
       ));
     }
     if (payment.cash == true) {

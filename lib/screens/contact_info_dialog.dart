@@ -47,7 +47,21 @@ class _ContactInfoDialogState extends State<_ContactInfoDialog> {
       title: const Text('Contact info'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEEF0FB),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Text(
+              'Anything you fill in here will be shared with the driver or '
+              'passenger you match with. Leave blank to share nothing.',
+              style: TextStyle(fontSize: 12),
+            ),
+          ),
           TextField(
             controller: _phone,
             keyboardType: TextInputType.phone,

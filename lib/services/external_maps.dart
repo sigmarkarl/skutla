@@ -3,6 +3,8 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'crypto_rates.dart';
+
 Future<bool> openDirections({required double lat, required double lng}) {
   final dest = '$lat,$lng';
   Uri url;
@@ -52,14 +54,36 @@ Future<bool> openVenmo(String handle) =>
       mode: LaunchMode.externalApplication,
     );
 
-Future<bool> openBitcoin(String address) =>
-    launchUrl(
-      Uri.parse('bitcoin:${address.trim()}'),
-      mode: LaunchMode.externalApplication,
+Future<bool> openBitcoin(String address,
+    {double? amount, String? currency}) async {
+  String uri = 'bitcoin:${address.trim()}';
+  if (amount != null && currency != null) {
+    final btc = await CryptoRates.convert(
+      coinId: 'bitcoin',
+      currency: currency,
+      fiatAmount: amount,
     );
+    if (btc != null && btc > 0) {
+      uri += '?amount=${btc.toStringAsFixed(8)}';
+    }
+  }
+  return launchUrl(Uri.parse(uri), mode: LaunchMode.externalApplication);
+}
 
-Future<bool> openEthereum(String address) =>
-    launchUrl(
-      Uri.parse('ethereum:${address.trim()}'),
-      mode: LaunchMode.externalApplication,
+Future<bool> openEthereum(String address,
+    {double? amount, String? currency}) async {
+  String uri = 'ethereum:${address.trim()}';
+  if (amount != null && currency != null) {
+    final eth = await CryptoRates.convert(
+      coinId: 'ethereum',
+      currency: currency,
+      fiatAmount: amount,
     );
+    if (eth != null && eth > 0) {
+      // EIP-681 expresses amount in wei.
+      final wei = (eth * 1e18).round();
+      uri += '?value=$wei';
+    }
+  }
+  return launchUrl(Uri.parse(uri), mode: LaunchMode.externalApplication);
+}

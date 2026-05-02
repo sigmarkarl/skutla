@@ -51,7 +51,6 @@ class _DriverScreenState extends State<DriverScreen> {
   RatingSummary _mySummary = RatingSummary.empty;
   CarInfo? _car;
   ContactInfo? _contact;
-  bool _shareContact = true;
   PaymentInfo? _payment;
   bool _currencyOverride = false;
 
@@ -73,6 +72,7 @@ class _DriverScreenState extends State<DriverScreen> {
   String? _activeRideId;
   String? _activePassengerId;
   String? _activePassengerName;
+  ContactInfo? _activePassengerContact;
   double? _activePrice;
   String? _activeCurrency;
   LatLng? _passengerLocation;
@@ -91,7 +91,6 @@ class _DriverScreenState extends State<DriverScreen> {
     _mySummary = await _ratings.summary();
     _car = await _identity.readCarInfo();
     _contact = await _identity.readContactInfo();
-    _shareContact = await _identity.readShareContact();
     _payment = await _identity.readPaymentInfo();
     final saved = await _identity.readCurrency();
     if (saved != null) {
@@ -271,7 +270,6 @@ class _DriverScreenState extends State<DriverScreen> {
         price: defaultPrice,
         pickupMeters: pickupMeters,
         tripMeters: tripMeters,
-        shareContact: _shareContact,
       );
     });
 
@@ -292,7 +290,7 @@ class _DriverScreenState extends State<DriverScreen> {
           final bid = _pendingRequests[msg.rideId];
           if (bid == null) return;
           bid.expiry?.cancel();
-          _activateRide(bid);
+          _activateRide(bid, passengerContact: msg.fromContact);
         } else {
           final removed = _pendingRequests.remove(msg.rideId);
           if (removed != null && mounted) {
@@ -351,7 +349,7 @@ class _DriverScreenState extends State<DriverScreen> {
     _chat.value = [..._chat.value, msg];
   }
 
-  void _activateRide(_PendingBid bid) {
+  void _activateRide(_PendingBid bid, {ContactInfo? passengerContact}) {
     for (final b in _pendingRequests.values) {
       b.expiry?.cancel();
     }
@@ -359,6 +357,7 @@ class _DriverScreenState extends State<DriverScreen> {
       _activeRideId = bid.request.rideId;
       _activePassengerId = bid.request.fromId;
       _activePassengerName = bid.request.fromName;
+      _activePassengerContact = passengerContact;
       _activePrice = bid.price;
       _activeCurrency = bid.currency;
       _activeStartedAt = DateTime.now();
@@ -375,9 +374,7 @@ class _DriverScreenState extends State<DriverScreen> {
 
   void _submitBid(_PendingBid bid) {
     final contactToSend =
-        (bid.shareContact && _contact != null && _contact!.hasAny)
-            ? _contact
-            : null;
+        (_contact != null && _contact!.hasAny) ? _contact : null;
     _p2p.sendInbox(InboxMessage(
       kind: InboxKind.rideOffer,
       fromId: widget.peerId,
@@ -405,14 +402,6 @@ class _DriverScreenState extends State<DriverScreen> {
       );
     });
     setState(() => bid.submitted = true);
-  }
-
-  Future<void> _toggleShareContact(_PendingBid bid, bool value) async {
-    setState(() {
-      bid.shareContact = value;
-      _shareContact = value;
-    });
-    await _identity.writeShareContact(value);
   }
 
   void _dismissRequest(_PendingBid bid) {
@@ -467,6 +456,7 @@ class _DriverScreenState extends State<DriverScreen> {
       _activeRideId = null;
       _activePassengerId = null;
       _activePassengerName = null;
+      _activePassengerContact = null;
       _activePrice = null;
       _activeCurrency = null;
       _passengerLocation = null;
@@ -672,7 +662,6 @@ class _DriverScreenState extends State<DriverScreen> {
                 onDismiss: _dismissRequest,
                 onPriceChange: (bid, price) =>
                     setState(() => bid.price = price),
-                onShareContactChange: _toggleShareContact,
                 onEditContact: _editContact,
               ),
             ),
@@ -684,6 +673,7 @@ class _DriverScreenState extends State<DriverScreen> {
               child: _ActiveRideCard(
                 passengerLabel:
                     _activePassengerName ?? _activePassengerId!.substring(0, 8),
+                passengerContact: _activePassengerContact,
                 price: _activePrice,
                 currency: _activeCurrency,
                 onEnd: _endRide,
@@ -753,7 +743,6 @@ class _PendingBid {
     required this.price,
     required this.pickupMeters,
     required this.tripMeters,
-    required this.shareContact,
   });
   final InboxMessage request;
   final String currency;
@@ -761,7 +750,6 @@ class _PendingBid {
   final double pickupMeters;
   final double tripMeters;
   bool submitted = false;
-  bool shareContact;
   Timer? expiry;
 
   double get totalMeters => pickupMeters + tripMeters;
@@ -778,7 +766,6 @@ class _IncomingRequestsPanel extends StatelessWidget {
     required this.onSubmit,
     required this.onDismiss,
     required this.onPriceChange,
-    required this.onShareContactChange,
     required this.onEditContact,
   });
   final List<_PendingBid> bids;
@@ -787,13 +774,12 @@ class _IncomingRequestsPanel extends StatelessWidget {
   final void Function(_PendingBid) onSubmit;
   final void Function(_PendingBid) onDismiss;
   final void Function(_PendingBid, double) onPriceChange;
-  final void Function(_PendingBid, bool) onShareContactChange;
   final VoidCallback onEditContact;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 280,
+      height: 260,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.zero,
@@ -806,7 +792,6 @@ class _IncomingRequestsPanel extends StatelessWidget {
           onSubmit: () => onSubmit(bids[i]),
           onDismiss: () => onDismiss(bids[i]),
           onPriceChange: (p) => onPriceChange(bids[i], p),
-          onShareContactChange: (v) => onShareContactChange(bids[i], v),
           onEditContact: onEditContact,
         ),
       ),
@@ -822,7 +807,6 @@ class _RequestBidCard extends StatefulWidget {
     required this.onSubmit,
     required this.onDismiss,
     required this.onPriceChange,
-    required this.onShareContactChange,
     required this.onEditContact,
   });
   final _PendingBid bid;
@@ -831,7 +815,6 @@ class _RequestBidCard extends StatefulWidget {
   final VoidCallback onSubmit;
   final VoidCallback onDismiss;
   final ValueChanged<double> onPriceChange;
-  final ValueChanged<bool> onShareContactChange;
   final VoidCallback onEditContact;
 
   @override
@@ -930,18 +913,7 @@ class _RequestBidCardState extends State<_RequestBidCard> {
                   ),
                 ],
               ),
-              if (widget.hasContact)
-                SwitchListTile.adaptive(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  visualDensity: VisualDensity.compact,
-                  title: const Text('Share contact'),
-                  value: widget.bid.shareContact,
-                  onChanged: widget.bid.submitted
-                      ? null
-                      : widget.onShareContactChange,
-                )
-              else
+              if (!widget.hasContact)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: TextButton.icon(
@@ -982,6 +954,7 @@ class _ActiveRideCard extends StatelessWidget {
     required this.onEnd,
     this.onOpenMaps,
     this.onOpenChat,
+    this.passengerContact,
     this.price,
     this.currency,
   });
@@ -989,6 +962,7 @@ class _ActiveRideCard extends StatelessWidget {
   final VoidCallback onEnd;
   final VoidCallback? onOpenMaps;
   final VoidCallback? onOpenChat;
+  final ContactInfo? passengerContact;
   final double? price;
   final String? currency;
 
@@ -998,38 +972,80 @@ class _ActiveRideCard extends StatelessWidget {
       elevation: 6,
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.person, color: Colors.red),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text('Active ride with $passengerLabel'),
+            Row(
+              children: [
+                const Icon(Icons.person, color: Colors.red),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('Active ride with $passengerLabel'),
+                ),
+                if (price != null && currency != null) ...[
+                  Text(Pricing.round(price!, currency!),
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(width: 8),
+                ],
+                if (onOpenChat != null)
+                  IconButton(
+                    tooltip: 'Chat',
+                    icon: const Icon(Icons.chat_bubble_outline),
+                    onPressed: onOpenChat,
+                  ),
+                if (onOpenMaps != null)
+                  IconButton(
+                    tooltip: 'Open destination in Maps',
+                    icon: const Icon(Icons.directions),
+                    onPressed: onOpenMaps,
+                  ),
+                const SizedBox(width: 4),
+                FilledButton.tonal(
+                  onPressed: onEnd,
+                  child: const Text('End ride'),
+                ),
+              ],
             ),
-            if (price != null && currency != null) ...[
-              Text(Pricing.round(price!, currency!),
-                  style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(width: 8),
+            if (passengerContact != null) ...[
+              const SizedBox(height: 4),
+              _ContactChips(contact: passengerContact!),
             ],
-            if (onOpenChat != null)
-              IconButton(
-                tooltip: 'Chat',
-                icon: const Icon(Icons.chat_bubble_outline),
-                onPressed: onOpenChat,
-              ),
-            if (onOpenMaps != null)
-              IconButton(
-                tooltip: 'Open destination in Maps',
-                icon: const Icon(Icons.directions),
-                onPressed: onOpenMaps,
-              ),
-            const SizedBox(width: 4),
-            FilledButton.tonal(
-              onPressed: onEnd,
-              child: const Text('End ride'),
-            ),
           ],
         ),
       ),
     );
+  }
+}
+
+class _ContactChips extends StatelessWidget {
+  const _ContactChips({required this.contact});
+  final ContactInfo contact;
+
+  @override
+  Widget build(BuildContext context) {
+    final children = <Widget>[];
+    if ((contact.phone ?? '').isNotEmpty) {
+      children.add(ActionChip(
+        avatar: const Icon(Icons.call, size: 16),
+        label: const Text('Call'),
+        onPressed: () => openPhone(contact.phone!),
+      ));
+    }
+    if ((contact.whatsapp ?? '').isNotEmpty) {
+      children.add(ActionChip(
+        avatar: const Icon(Icons.chat, size: 16),
+        label: const Text('WhatsApp'),
+        onPressed: () => openWhatsApp(contact.whatsapp!),
+      ));
+    }
+    if ((contact.messenger ?? '').isNotEmpty) {
+      children.add(ActionChip(
+        avatar: const Icon(Icons.message, size: 16),
+        label: const Text('Messenger'),
+        onPressed: () => openMessenger(contact.messenger!),
+      ));
+    }
+    if (children.isEmpty) return const SizedBox.shrink();
+    return Wrap(spacing: 6, runSpacing: 4, children: children);
   }
 }
