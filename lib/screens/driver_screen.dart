@@ -126,7 +126,6 @@ class _DriverScreenState extends State<DriverScreen> {
     final initial = await _location.currentPosition();
     if (initial != null && mounted) {
       setState(() => _last = initial);
-      _broadcast();
       _refreshRequestArea(initial);
       if (initial.latitude != 0 || initial.longitude != 0) {
         _map.move(LatLng(initial.latitude, initial.longitude), 14);
@@ -136,7 +135,6 @@ class _DriverScreenState extends State<DriverScreen> {
 
     _posSub = _location.positionStream().listen((pos) {
       _last = pos;
-      _broadcast();
       _refreshRequestArea(pos);
       if (_activeRideId != null && _activePassengerId != null) {
         _p2p.sendInbox(InboxMessage(
@@ -153,7 +151,6 @@ class _DriverScreenState extends State<DriverScreen> {
     });
 
     _heartbeat = Timer.periodic(const Duration(seconds: 10), (_) {
-      _broadcast();
       if (_last != null &&
           _activeRideId != null &&
           _activePassengerId != null) {
@@ -170,22 +167,6 @@ class _DriverScreenState extends State<DriverScreen> {
     });
   }
 
-  void _broadcast() {
-    final pos = _last;
-    if (pos == null) return;
-    _p2p.updateDriverPresence(DriverPresence(
-      driverId: widget.peerId,
-      lat: pos.latitude,
-      lng: pos.longitude,
-      available: _available && _activeRideId == null,
-      updatedAt: DateTime.now(),
-      displayName: widget.displayName,
-      avgRating: _mySummary.count > 0 ? _mySummary.average : null,
-      ratingCount: _mySummary.count > 0 ? _mySummary.count : null,
-      car: _car,
-    ));
-  }
-
   Future<void> _editCar() async {
     final updated =
         await showCarInfoDialog(context, initial: _car, isFirstSetup: false);
@@ -193,7 +174,6 @@ class _DriverScreenState extends State<DriverScreen> {
     await _identity.writeCarInfo(updated);
     if (!mounted) return;
     setState(() => _car = updated);
-    _broadcast();
   }
 
   Future<void> _editContact() async {
@@ -354,7 +334,6 @@ class _DriverScreenState extends State<DriverScreen> {
               : null;
       _pendingRequests.clear();
     });
-    _broadcast();
   }
 
   void _submitBid(_PendingBid bid) {
@@ -419,7 +398,6 @@ class _DriverScreenState extends State<DriverScreen> {
     _mySummary = await _ratings.summary();
     if (!mounted) return;
     setState(() {});
-    _broadcast();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -458,7 +436,6 @@ class _DriverScreenState extends State<DriverScreen> {
       _activeDestination = null;
       _activeStartedAt = null;
     });
-    _broadcast();
 
     if (endedRideId != null && endedPassengerId != null) {
       _history.add(RideRecord(
@@ -504,7 +481,6 @@ class _DriverScreenState extends State<DriverScreen> {
   }
 
   Future<void> _switchRole() async {
-    _p2p.clearDriverPresence(widget.peerId);
     await IdentityService().clear();
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
@@ -524,7 +500,6 @@ class _DriverScreenState extends State<DriverScreen> {
     _inboxSub?.cancel();
     _requestsSub?.cancel();
     _connSub?.cancel();
-    _p2p.clearDriverPresence(widget.peerId);
     _p2p.dispose();
     super.dispose();
   }
@@ -690,7 +665,6 @@ class _DriverScreenState extends State<DriverScreen> {
             ? null
             : () {
                 setState(() => _available = !_available);
-                _broadcast();
               },
       ),
     );

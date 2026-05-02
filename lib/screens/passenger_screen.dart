@@ -48,18 +48,13 @@ class _PassengerScreenState extends State<PassengerScreen> {
   RatingSummary _mySummary = RatingSummary.empty;
 
   StreamSubscription<Position>? _posSub;
-  StreamSubscription<DriverPresence>? _driversSub;
   StreamSubscription<InboxMessage>? _inboxSub;
   StreamSubscription<bool>? _connSub;
-  Timer? _staleTimer;
 
   Position? _last;
   bool _connected = false;
-  String? _searchCell;
   LatLng? _destination;
   String _currency = Pricing.detectCurrency();
-
-  final Map<String, DriverPresence> _drivers = {};
 
   String? _pendingRideId;
   bool _broadcasting = false;
@@ -99,9 +94,6 @@ class _PassengerScreenState extends State<PassengerScreen> {
     _connSub = _p2p.connectionState.listen((c) {
       if (mounted) setState(() => _connected = c);
     });
-    _driversSub = _p2p.driverUpdates.listen((p) {
-      setState(() => _drivers[p.driverId] = p);
-    });
     _inboxSub = _p2p.inbox.listen(_onInbox);
 
     await _p2p.connect();
@@ -111,7 +103,6 @@ class _PassengerScreenState extends State<PassengerScreen> {
     final initial = await _location.currentPosition();
     if (initial != null && mounted) {
       setState(() => _last = initial);
-      _refreshSearchArea(initial);
       if (initial.latitude != 0 || initial.longitude != 0) {
         _map.move(LatLng(initial.latitude, initial.longitude), 14);
         _resolveCurrency(initial);
@@ -120,7 +111,6 @@ class _PassengerScreenState extends State<PassengerScreen> {
 
     _posSub = _location.positionStream().listen((pos) {
       _last = pos;
-      _refreshSearchArea(pos);
       if (_activeRideId != null && _activeDriverId != null) {
         _p2p.sendInbox(InboxMessage(
           kind: InboxKind.locationUpdate,
@@ -134,20 +124,6 @@ class _PassengerScreenState extends State<PassengerScreen> {
       }
       if (mounted) setState(() {});
     });
-
-    _staleTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      final now = DateTime.now();
-      setState(() {
-        _drivers.removeWhere((_, p) => now.difference(p.updatedAt).inSeconds > 25);
-      });
-    });
-  }
-
-  void _refreshSearchArea(Position pos) {
-    final cell = encodeGeohash(pos.latitude, pos.longitude);
-    if (cell == _searchCell) return;
-    _searchCell = cell;
-    _p2p.updatePassengerSearchArea(pos.latitude, pos.longitude);
   }
 
   Future<void> _resolveCurrency(Position pos) async {
@@ -434,10 +410,8 @@ class _PassengerScreenState extends State<PassengerScreen> {
 
   @override
   void dispose() {
-    _staleTimer?.cancel();
     _broadcastTimeout?.cancel();
     _posSub?.cancel();
-    _driversSub?.cancel();
     _inboxSub?.cancel();
     _connSub?.cancel();
     _bidsScroll.dispose();
@@ -485,7 +459,8 @@ class _PassengerScreenState extends State<PassengerScreen> {
         ? LatLng(_last!.latitude, _last!.longitude)
         : const LatLng(64.1466, -21.9426);
 
-    final visibleDrivers = _drivers.values.where((d) => d.available).toList();
+    final bidsWithLocation =
+        _bids.values.where((b) => b.lat != null && b.lng != null).toList();
 
     final markers = <Marker>[
       if (_last != null)
@@ -515,44 +490,38 @@ class _PassengerScreenState extends State<PassengerScreen> {
                 )
               : const Icon(Icons.flag, size: 36, color: Colors.deepPurple),
         ),
-      ...visibleDrivers.map((d) {
-        final bid = _bids[d.driverId];
-        final isBidder = bid != null;
-        final isSelected = _selectedBidId == d.driverId;
-        final dimNonBidders = _broadcasting && !isBidder;
-        final color = isBidder
-            ? (isSelected ? Colors.green.shade700 : Colors.green)
-            : Colors.blueAccent;
-        final size = isSelected ? 48.0 : (isBidder ? 42.0 : 36.0);
-        return Marker(
-          point: LatLng(d.lat, d.lng),
-          width: 80,
-          height: 80,
-          child: Opacity(
-            opacity: dimNonBidders ? 0.35 : 1,
+      // Only drivers who have actively bid on the current request are shown.
+      if (_activeRideId == null)
+        ...bidsWithLocation.map((bid) {
+          final isSelected = _selectedBidId == bid.fromId;
+          final color =
+              isSelected ? Colors.green.shade700 : Colors.green;
+          final size = isSelected ? 48.0 : 42.0;
+          return Marker(
+            point: LatLng(bid.lat!, bid.lng!),
+            width: 80,
+            height: 80,
             child: GestureDetector(
-              onTap: isBidder
-                  ? () {
-                      final willSelect = !isSelected;
-                      setState(() => _selectedBidId =
-                          willSelect ? d.driverId : null);
-                      _map.move(LatLng(d.lat, d.lng), 14);
-                      if (willSelect) {
-                        WidgetsBinding.instance.addPostFrameCallback(
-                          (_) => _scrollBidIntoView(d.driverId),
-                        );
-                      }
-                    }
-                  : null,
+              onTap: () {
+                final willSelect = !isSelected;
+                setState(() =>
+                    _selectedBidId = willSelect ? bid.fromId : null);
+                _map.move(LatLng(bid.lat!, bid.lng!), 14);
+                if (willSelect) {
+                  WidgetsBinding.instance.addPostFrameCallback(
+                    (_) => _scrollBidIntoView(bid.fromId),
+                  );
+                }
+              },
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (bid != null && bid.price != null && bid.currency != null)
+                  if (bid.price != null && bid.currency != null)
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: isSelected ? Colors.green.shade700 : Colors.green,
+                        color: color,
                         borderRadius: BorderRadius.circular(10),
                         boxShadow: const [
                           BoxShadow(blurRadius: 2, color: Colors.black26),
@@ -571,9 +540,8 @@ class _PassengerScreenState extends State<PassengerScreen> {
                 ],
               ),
             ),
-          ),
-        );
-      }),
+          );
+        }),
       if (_activeDriverLocation != null)
         Marker(
           point: _activeDriverLocation!,
@@ -650,7 +618,6 @@ class _PassengerScreenState extends State<PassengerScreen> {
                   right: 12,
                   child: _StatusCard(
                     connected: _connected,
-                    driverCount: visibleDrivers.length,
                     hasDestination: _destination != null,
                     onClearDestination: _destination == null
                         ? null
@@ -918,12 +885,10 @@ class _BidCard extends StatelessWidget {
 class _StatusCard extends StatelessWidget {
   const _StatusCard({
     required this.connected,
-    required this.driverCount,
     required this.hasDestination,
     this.onClearDestination,
   });
   final bool connected;
-  final int driverCount;
   final bool hasDestination;
   final VoidCallback? onClearDestination;
 
@@ -942,8 +907,6 @@ class _StatusCard extends StatelessWidget {
                     size: 12, color: connected ? Colors.green : Colors.grey),
                 const SizedBox(width: 8),
                 Text(connected ? 'Connected' : 'Connecting…'),
-                const Spacer(),
-                Text('$driverCount drivers nearby'),
               ],
             ),
             const SizedBox(height: 4),
