@@ -177,7 +177,10 @@ class _PassengerScreenState extends State<PassengerScreen> {
         if (msg.rideId == _activeRideId &&
             msg.lat != null &&
             msg.lng != null) {
-          setState(() => _activeDriverLocation = LatLng(msg.lat!, msg.lng!));
+          final loc = LatLng(msg.lat!, msg.lng!);
+          final wasNull = _activeDriverLocation == null;
+          setState(() => _activeDriverLocation = loc);
+          if (wasNull) _fitToRide();
         }
         break;
       case InboxKind.cancel:
@@ -442,6 +445,26 @@ class _PassengerScreenState extends State<PassengerScreen> {
     super.dispose();
   }
 
+  void _fitToRide() {
+    if (_last == null || _activeDriverLocation == null) return;
+    final passenger = LatLng(_last!.latitude, _last!.longitude);
+    final bounds = LatLngBounds.fromPoints([passenger, _activeDriverLocation!]);
+    _map.fitCamera(CameraFit.bounds(
+      bounds: bounds,
+      padding: const EdgeInsets.all(80),
+    ));
+  }
+
+  double? _driverDistanceMeters() {
+    if (_last == null || _activeDriverLocation == null) return null;
+    return Geolocator.distanceBetween(
+      _last!.latitude,
+      _last!.longitude,
+      _activeDriverLocation!.latitude,
+      _activeDriverLocation!.longitude,
+    );
+  }
+
   void _scrollBidIntoView(String bidId) {
     final ids = _bids.keys.toList();
     final idx = ids.indexOf(bidId);
@@ -647,6 +670,10 @@ class _PassengerScreenState extends State<PassengerScreen> {
                       payment: _activeDriverPayment,
                       price: _activePrice,
                       currency: _activeCurrency,
+                      driverDistanceMeters: _driverDistanceMeters(),
+                      canRecenter: _activeDriverLocation != null &&
+                          _last != null,
+                      onRecenter: _fitToRide,
                       onEnd: _endRide,
                       onOpenMaps: _destination == null
                           ? null
@@ -958,6 +985,9 @@ class _ActiveRideCard extends StatelessWidget {
     this.payment,
     this.price,
     this.currency,
+    this.driverDistanceMeters,
+    this.canRecenter = false,
+    this.onRecenter,
   });
   final String driverLabel;
   final VoidCallback onEnd;
@@ -967,9 +997,19 @@ class _ActiveRideCard extends StatelessWidget {
   final PaymentInfo? payment;
   final double? price;
   final String? currency;
+  final double? driverDistanceMeters;
+  final bool canRecenter;
+  final VoidCallback? onRecenter;
 
   @override
   Widget build(BuildContext context) {
+    final dist = driverDistanceMeters;
+    final distLabel = dist == null
+        ? null
+        : (dist < 1000
+            ? '${dist.round()} m away'
+            : '${(dist / 1000).toStringAsFixed(1)} km away');
+
     return Card(
       elevation: 6,
       child: Padding(
@@ -982,21 +1022,35 @@ class _ActiveRideCard extends StatelessWidget {
                 const Icon(Icons.directions_car, color: Colors.green),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text('On the way: $driverLabel'),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('On the way: $driverLabel'),
+                      if (distLabel != null)
+                        Text(distLabel,
+                            style: Theme.of(context).textTheme.bodySmall),
+                    ],
+                  ),
                 ),
                 if (price != null && currency != null) ...[
                   Text(Pricing.round(price!, currency!),
                       style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
                 ],
-                if (onOpenMaps != null) ...[
+                if (canRecenter && onRecenter != null) ...[
+                  IconButton(
+                    tooltip: 'Center map on ride',
+                    icon: const Icon(Icons.my_location),
+                    onPressed: onRecenter,
+                  ),
+                ],
+                if (onOpenMaps != null)
                   IconButton(
                     tooltip: 'Open destination in Maps',
                     icon: const Icon(Icons.directions),
                     onPressed: onOpenMaps,
                   ),
-                  const SizedBox(width: 4),
-                ],
+                const SizedBox(width: 4),
                 FilledButton.tonal(
                   onPressed: onEnd,
                   child: const Text('End ride'),

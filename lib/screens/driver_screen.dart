@@ -152,7 +152,22 @@ class _DriverScreenState extends State<DriverScreen> {
       if (mounted) setState(() {});
     });
 
-    _heartbeat = Timer.periodic(const Duration(seconds: 10), (_) => _broadcast());
+    _heartbeat = Timer.periodic(const Duration(seconds: 10), (_) {
+      _broadcast();
+      if (_last != null &&
+          _activeRideId != null &&
+          _activePassengerId != null) {
+        _p2p.sendInbox(InboxMessage(
+          kind: InboxKind.locationUpdate,
+          fromId: widget.peerId,
+          fromName: widget.displayName,
+          toId: _activePassengerId!,
+          rideId: _activeRideId,
+          lat: _last!.latitude,
+          lng: _last!.longitude,
+        ));
+      }
+    });
   }
 
   void _broadcast() {
