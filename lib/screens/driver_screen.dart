@@ -225,6 +225,16 @@ class _DriverScreenState extends State<DriverScreen> {
     if (msg.rideId == null) return;
     if (_pendingRequests.containsKey(msg.rideId)) return;
 
+    // One pending request per passenger — replace any older request from
+    // this same passenger so they only ever appear once on screen.
+    _pendingRequests.removeWhere((_, bid) {
+      if (bid.request.fromId == msg.fromId) {
+        bid.expiry?.cancel();
+        return true;
+      }
+      return false;
+    });
+
     final pickup = (msg.lat != null && msg.lng != null)
         ? LatLng(msg.lat!, msg.lng!)
         : null;
