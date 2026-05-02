@@ -173,6 +173,20 @@ class _PaymentChips extends StatelessWidget {
         onPressed: () {},
       ));
     }
+    if ((payment.bitcoin ?? '').isNotEmpty) {
+      children.add(ActionChip(
+        avatar: const Icon(Icons.currency_bitcoin, size: 16),
+        label: const Text('Bitcoin'),
+        onPressed: () => openBitcoin(payment.bitcoin!),
+      ));
+    }
+    if ((payment.ethereum ?? '').isNotEmpty) {
+      children.add(ActionChip(
+        avatar: const Icon(Icons.token, size: 16),
+        label: const Text('Ethereum'),
+        onPressed: () => openEthereum(payment.ethereum!),
+      ));
+    }
     if (payment.cash == true) {
       children.add(const Chip(
         avatar: Icon(Icons.payments, size: 16),

@@ -36,12 +36,16 @@ class PaymentInfo {
     this.paypal,
     this.venmo,
     this.wechat,
+    this.bitcoin,
+    this.ethereum,
     this.cash,
   });
   final String? aur;
   final String? paypal;
   final String? venmo;
   final String? wechat;
+  final String? bitcoin;
+  final String? ethereum;
   final bool? cash;
 
   bool get hasAny =>
@@ -49,6 +53,8 @@ class PaymentInfo {
       (paypal?.isNotEmpty ?? false) ||
       (venmo?.isNotEmpty ?? false) ||
       (wechat?.isNotEmpty ?? false) ||
+      (bitcoin?.isNotEmpty ?? false) ||
+      (ethereum?.isNotEmpty ?? false) ||
       (cash ?? false);
 
   Map<String, dynamic> toJson() => {
@@ -56,6 +62,8 @@ class PaymentInfo {
         'paypal': paypal,
         'venmo': venmo,
         'wechat': wechat,
+        'bitcoin': bitcoin,
+        'ethereum': ethereum,
         'cash': cash,
       };
 
@@ -66,6 +74,8 @@ class PaymentInfo {
       paypal: m['paypal'] as String?,
       venmo: m['venmo'] as String?,
       wechat: m['wechat'] as String?,
+      bitcoin: m['bitcoin'] as String?,
+      ethereum: m['ethereum'] as String?,
       cash: m['cash'] as bool?,
     );
     return p.hasAny ? p : null;

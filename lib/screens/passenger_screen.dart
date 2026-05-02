@@ -1144,6 +1144,20 @@ class _PaymentButtons extends StatelessWidget {
         onTap: () {},
       ));
     }
+    if ((payment.bitcoin ?? '').isNotEmpty) {
+      children.add(_ContactChip(
+        icon: Icons.currency_bitcoin,
+        label: 'Bitcoin',
+        onTap: () => openBitcoin(payment.bitcoin!),
+      ));
+    }
+    if ((payment.ethereum ?? '').isNotEmpty) {
+      children.add(_ContactChip(
+        icon: Icons.token,
+        label: 'Ethereum',
+        onTap: () => openEthereum(payment.ethereum!),
+      ));
+    }
     if (payment.cash == true) {
       children.add(const _ContactChip(
         icon: Icons.payments,

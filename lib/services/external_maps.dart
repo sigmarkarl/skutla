@@ -51,3 +51,15 @@ Future<bool> openVenmo(String handle) =>
       Uri.parse('https://venmo.com/u/${handle.trim()}'),
       mode: LaunchMode.externalApplication,
     );
+
+Future<bool> openBitcoin(String address) =>
+    launchUrl(
+      Uri.parse('bitcoin:${address.trim()}'),
+      mode: LaunchMode.externalApplication,
+    );
+
+Future<bool> openEthereum(String address) =>
+    launchUrl(
+      Uri.parse('ethereum:${address.trim()}'),
+      mode: LaunchMode.externalApplication,
+    );

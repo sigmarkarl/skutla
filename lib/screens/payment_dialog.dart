@@ -34,6 +34,8 @@ class _PaymentDialogState extends State<_PaymentDialog> {
   late final TextEditingController _paypal;
   late final TextEditingController _venmo;
   late final TextEditingController _wechat;
+  late final TextEditingController _bitcoin;
+  late final TextEditingController _ethereum;
   late bool _cash;
 
   @override
@@ -44,6 +46,8 @@ class _PaymentDialogState extends State<_PaymentDialog> {
     _paypal = TextEditingController(text: widget.initial?.paypal ?? '');
     _venmo = TextEditingController(text: widget.initial?.venmo ?? '');
     _wechat = TextEditingController(text: widget.initial?.wechat ?? '');
+    _bitcoin = TextEditingController(text: widget.initial?.bitcoin ?? '');
+    _ethereum = TextEditingController(text: widget.initial?.ethereum ?? '');
     _cash = widget.initial?.cash ?? false;
   }
 
@@ -54,6 +58,8 @@ class _PaymentDialogState extends State<_PaymentDialog> {
     _paypal.dispose();
     _venmo.dispose();
     _wechat.dispose();
+    _bitcoin.dispose();
+    _ethereum.dispose();
     super.dispose();
   }
 
@@ -113,6 +119,24 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                   border: OutlineInputBorder(),
                 ),
               ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _bitcoin,
+                decoration: const InputDecoration(
+                  labelText: 'Bitcoin address',
+                  hintText: 'bc1q… or 1A1zP…',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _ethereum,
+                decoration: const InputDecoration(
+                  labelText: 'Ethereum / USDC address',
+                  hintText: '0x…',
+                  border: OutlineInputBorder(),
+                ),
+              ),
               const SizedBox(height: 8),
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
@@ -141,6 +165,12 @@ class _PaymentDialogState extends State<_PaymentDialog> {
               venmo: _venmo.text.trim().isEmpty ? null : _venmo.text.trim(),
               wechat:
                   _wechat.text.trim().isEmpty ? null : _wechat.text.trim(),
+              bitcoin: _bitcoin.text.trim().isEmpty
+                  ? null
+                  : _bitcoin.text.trim(),
+              ethereum: _ethereum.text.trim().isEmpty
+                  ? null
+                  : _ethereum.text.trim(),
               cash: _cash ? true : null,
             );
             Navigator.of(context).pop(PaymentDialogResult(
