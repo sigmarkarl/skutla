@@ -168,6 +168,7 @@ enum InboxKind {
   locationUpdate,
   cancel,
   rating,
+  chat,
 }
 
 class InboxMessage {

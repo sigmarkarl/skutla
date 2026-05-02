@@ -15,6 +15,7 @@ import '../services/geohash.dart';
 import '../services/identity_service.dart';
 import '../services/ride_history.dart';
 import 'backup_dialog.dart';
+import 'chat_screen.dart';
 import 'history_screen.dart';
 import '../services/location_service.dart';
 import '../services/notifier.dart';
@@ -60,6 +61,7 @@ class _PassengerScreenState extends State<PassengerScreen> {
   bool _broadcasting = false;
   Timer? _broadcastTimeout;
   final Map<String, InboxMessage> _bids = {};
+  final ValueNotifier<List<InboxMessage>> _chat = ValueNotifier([]);
 
   String? _activeDriverId;
   String? _activeDriverName;
@@ -167,10 +169,35 @@ class _PassengerScreenState extends State<PassengerScreen> {
       case InboxKind.rating:
         _onRatingReceived(msg);
         break;
+      case InboxKind.chat:
+        if (msg.rideId == _activeRideId &&
+            (msg.note?.isNotEmpty ?? false)) {
+          _chat.value = [..._chat.value, msg];
+          Notifier.notify(
+            title: 'Message from ${msg.fromName ?? 'driver'}',
+            body: msg.note!,
+            id: 'chat-${msg.fromId}'.hashCode,
+          );
+        }
+        break;
       case InboxKind.rideRequest:
       case InboxKind.rideResponse:
         break;
     }
+  }
+
+  void _sendChat(String text) {
+    if (_activeRideId == null || _activeDriverId == null) return;
+    final msg = InboxMessage(
+      kind: InboxKind.chat,
+      fromId: widget.peerId,
+      fromName: widget.displayName,
+      toId: _activeDriverId!,
+      rideId: _activeRideId,
+      note: text,
+    );
+    _p2p.sendInbox(msg);
+    _chat.value = [..._chat.value, msg];
   }
 
   Future<void> _onRatingReceived(InboxMessage msg) async {
@@ -352,6 +379,7 @@ class _PassengerScreenState extends State<PassengerScreen> {
       _activeStartedAt = null;
       _destination = null;
     });
+    _chat.value = const [];
 
     if (endedRideId != null && endedDriverId != null) {
       _history.add(RideRecord(
@@ -427,6 +455,7 @@ class _PassengerScreenState extends State<PassengerScreen> {
     _inboxSub?.cancel();
     _connSub?.cancel();
     _bidsScroll.dispose();
+    _chat.dispose();
     _p2p.dispose();
     super.dispose();
   }
@@ -660,6 +689,16 @@ class _PassengerScreenState extends State<PassengerScreen> {
                                 lat: _destination!.latitude,
                                 lng: _destination!.longitude,
                               ),
+                      onOpenChat: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ChatScreen(
+                            title: _activeDriverName ?? 'Driver',
+                            messages: _chat,
+                            myPeerId: widget.peerId,
+                            onSend: _sendChat,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
               ],
@@ -955,6 +994,7 @@ class _ActiveRideCard extends StatelessWidget {
     required this.driverLabel,
     required this.onEnd,
     this.onOpenMaps,
+    this.onOpenChat,
     this.car,
     this.contact,
     this.payment,
@@ -967,6 +1007,7 @@ class _ActiveRideCard extends StatelessWidget {
   final String driverLabel;
   final VoidCallback onEnd;
   final VoidCallback? onOpenMaps;
+  final VoidCallback? onOpenChat;
   final CarInfo? car;
   final ContactInfo? contact;
   final PaymentInfo? payment;
@@ -1012,13 +1053,18 @@ class _ActiveRideCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(width: 4),
                 ],
-                if (canRecenter && onRecenter != null) ...[
+                if (canRecenter && onRecenter != null)
                   IconButton(
                     tooltip: 'Center map on ride',
                     icon: const Icon(Icons.my_location),
                     onPressed: onRecenter,
                   ),
-                ],
+                if (onOpenChat != null)
+                  IconButton(
+                    tooltip: 'Chat',
+                    icon: const Icon(Icons.chat_bubble_outline),
+                    onPressed: onOpenChat,
+                  ),
                 if (onOpenMaps != null)
                   IconButton(
                     tooltip: 'Open destination in Maps',

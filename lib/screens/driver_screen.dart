@@ -20,6 +20,7 @@ import '../models/ride_record.dart';
 import '../services/ride_history.dart';
 import 'backup_dialog.dart';
 import 'car_info_dialog.dart';
+import 'chat_screen.dart';
 import 'contact_info_dialog.dart';
 import 'history_screen.dart';
 import 'payment_dialog.dart';
@@ -67,6 +68,7 @@ class _DriverScreenState extends State<DriverScreen> {
   String _currency = Pricing.detectCurrency();
 
   final Map<String, _PendingBid> _pendingRequests = {};
+  final ValueNotifier<List<InboxMessage>> _chat = ValueNotifier([]);
 
   String? _activeRideId;
   String? _activePassengerId;
@@ -318,10 +320,35 @@ class _DriverScreenState extends State<DriverScreen> {
       case InboxKind.rating:
         _onRatingReceived(msg);
         break;
+      case InboxKind.chat:
+        if (msg.rideId == _activeRideId &&
+            (msg.note?.isNotEmpty ?? false)) {
+          _chat.value = [..._chat.value, msg];
+          Notifier.notify(
+            title: 'Message from ${msg.fromName ?? 'passenger'}',
+            body: msg.note!,
+            id: 'chat-${msg.fromId}'.hashCode,
+          );
+        }
+        break;
       case InboxKind.rideRequest:
       case InboxKind.rideOffer:
         break;
     }
+  }
+
+  void _sendChat(String text) {
+    if (_activeRideId == null || _activePassengerId == null) return;
+    final msg = InboxMessage(
+      kind: InboxKind.chat,
+      fromId: widget.peerId,
+      fromName: widget.displayName,
+      toId: _activePassengerId!,
+      rideId: _activeRideId,
+      note: text,
+    );
+    _p2p.sendInbox(msg);
+    _chat.value = [..._chat.value, msg];
   }
 
   void _activateRide(_PendingBid bid) {
@@ -446,6 +473,7 @@ class _DriverScreenState extends State<DriverScreen> {
       _activeDestination = null;
       _activeStartedAt = null;
     });
+    _chat.value = const [];
 
     if (endedRideId != null && endedPassengerId != null) {
       _history.add(RideRecord(
@@ -510,6 +538,7 @@ class _DriverScreenState extends State<DriverScreen> {
     _inboxSub?.cancel();
     _requestsSub?.cancel();
     _connSub?.cancel();
+    _chat.dispose();
     _p2p.dispose();
     super.dispose();
   }
@@ -664,6 +693,16 @@ class _DriverScreenState extends State<DriverScreen> {
                           lat: _activeDestination!.latitude,
                           lng: _activeDestination!.longitude,
                         ),
+                onOpenChat: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ChatScreen(
+                      title: _activePassengerName ?? 'Passenger',
+                      messages: _chat,
+                      myPeerId: widget.peerId,
+                      onSend: _sendChat,
+                    ),
+                  ),
+                ),
               ),
             ),
         ],
@@ -942,12 +981,14 @@ class _ActiveRideCard extends StatelessWidget {
     required this.passengerLabel,
     required this.onEnd,
     this.onOpenMaps,
+    this.onOpenChat,
     this.price,
     this.currency,
   });
   final String passengerLabel;
   final VoidCallback onEnd;
   final VoidCallback? onOpenMaps;
+  final VoidCallback? onOpenChat;
   final double? price;
   final String? currency;
 
@@ -969,14 +1010,19 @@ class _ActiveRideCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(width: 8),
             ],
-            if (onOpenMaps != null) ...[
+            if (onOpenChat != null)
+              IconButton(
+                tooltip: 'Chat',
+                icon: const Icon(Icons.chat_bubble_outline),
+                onPressed: onOpenChat,
+              ),
+            if (onOpenMaps != null)
               IconButton(
                 tooltip: 'Open destination in Maps',
                 icon: const Icon(Icons.directions),
                 onPressed: onOpenMaps,
               ),
-              const SizedBox(width: 4),
-            ],
+            const SizedBox(width: 4),
             FilledButton.tonal(
               onPressed: onEnd,
               child: const Text('End ride'),
